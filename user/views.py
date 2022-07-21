@@ -7,7 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import LoginSerializer, RegisterSerializer
 from rest_framework import status
-from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
+import jwt
 
 
 # Create your views here.
@@ -23,14 +24,17 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
+    model = User
+
     def post (self, request):
+        user1 = User(userId="chlcui1324")
         serializer = LoginSerializer(data = request.data)
         if serializer.is_valid():
-            print(request.data['userId'])
-            user = User.objects.filter(userId = request.data['userId'], password = request.data['password']).values()
-            print(user[0])
-            if user:
-                token = Token.objects.create(user=User)
-                return Response({"token":token.key}, status=status.HTTP_200_OK)
+            userinfo = User.objects.filter(userId = request.data['userId'], password = request.data['password']).values()
+            if userinfo:
+                token = jwt.encode({"userId":request.data["userId"]}, "1234", algorithm="HS256")
+                return Response({"token":token, "userId":request.data["userId"]}, status=status.HTTP_200_OK)
+
             return Response({"err":"정보가 이상함"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"err":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)    
+
+        return Response({"err":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

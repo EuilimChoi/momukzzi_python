@@ -33,7 +33,7 @@ class RegisterSerializer(serializers.Serializer):
             password = data["password"],
             email = data["email"],
             nickname = data["nickname"]
-            )
+        )
 
 class LoginSerializer(serializers.Serializer):
     userId = serializers.CharField(required=True,)
