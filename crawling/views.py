@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
+from django.db import transaction
+from .serializers import ShopInfoSerializer,ShopPicSerializer,ShopMenuSerializer
 import time
 import asyncio
 
@@ -15,7 +17,7 @@ class CrawlingView (APIView):
     def post (self, request):
         webdriver_options = webdriver.ChromeOptions()
         webdriver_options.add_argument('headless')
-        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver",options=webdriver_options)
+        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver")
         shops = request.data["data"]
         result = []
 
@@ -29,11 +31,14 @@ class CrawlingView (APIView):
 
             driver.switch_to.window(driver.window_handles[1])
 
-            time.sleep(1)
+            time.sleep(3)
             browser = driver.window_handles
 
             for i in range(1,len(browser)):
                 shopinfo = {"shopName" : target[0-i]["place_name"],
+                            "shopId" : target[0-i]["id"],
+                            "location" : target[0-i]["road_address_name"],
+                            "phoneNumber" : target[0-i]["phone"],
                             "shoppic" :[],
                             "menu": []
                             }
@@ -52,6 +57,8 @@ class CrawlingView (APIView):
                         try:
                             menu = soup.find('ul',{'class':'list_menu'})
                             menus = menu.find_all('li')
+                            print(menus)
+
                             for m in menus:
                                 menu = m.find("span",{"class":"loss_word"}).get_text()
                                 price = m.find("em",{"class":"price_menu"}).get_text()
@@ -60,12 +67,44 @@ class CrawlingView (APIView):
                                 shopinfo["menu"].append(menuSet)
                         except:
                             shopinfo["menu"].append(["메뉴 정보 없음","가격 정보 없음"])
+
                 except:
                     print("로딩 에러 인듯")    
-        
 
+                # dbsaveLogic(shopinfo)
                 result.append(shopinfo)
 
+        def dbsaveLogic(shopinfo):
+            print(shopinfo)
+            shopinfos = {"shopName" : shopinfo["shopName"],
+                        "shopId" : shopinfo["shopId"],
+                        "location" : shopinfo["location"],
+                        "phoneNumber" : shopinfo["phoneNumber"]}
+
+            shopinfoserializer = ShopInfoSerializer(data = shopinfos)
+
+            if shopinfoserializer.is_valid():
+                shopinfoserializer.save()
+            else :
+                print("Not saved!!!!!!!!")
+            
+            for i in shopinfo["shoppic"]:
+                shoppicserializer=ShopPicSerializer(data = {"shopId" : shopinfo["shopId"],"URL":i})
+                if shoppicserializer.is_valid():
+                    shoppicserializer.save()
+
+            for i in shopinfo["menu"]:
+                shopmenuserializer=ShopMenuSerializer(data = {"shopId" : shopinfo["shopId"],"menu":i[0],"price":i[1]})
+                if shopmenuserializer.is_valid():
+                    shopmenuserializer.save()
+
+            print(shopinfo["shoppic"])
+
+
+
+
+
         crwaling(shops)
+        driver.close()
 
         return Response(result)
