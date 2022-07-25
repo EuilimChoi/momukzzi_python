@@ -8,52 +8,64 @@ import time
 import asyncio
 
 # Create your views here.
-
+loop = asyncio.get_event_loop()
+asyncio.set_event_loop(loop)
 
 class CrawlingView (APIView):
     def post (self, request):
-        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver")
+        webdriver_options = webdriver.ChromeOptions()
+        webdriver_options.add_argument('headless')
+        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver",options=webdriver_options)
+        shops = request.data["data"]
         result = []
 
-        async def crwaling(target):
-            shopinfo = {"shopName" : target["place_name"],
-                    "shoppic" :[],
-                    "menu": []
-                    }
 
-            driver.get(target["place_url"])
-            await asyncio.sleep(3)
+        def crwaling(target):
+            
+            for urls in target:
+                driver.execute_script("window.open('"+urls["place_url"]+"')")
 
-            html = driver.page_source
-            soup = BeautifulSoup(html, 'html.parser')
+            # 모든 브라우져 열기
 
+            driver.switch_to.window(driver.window_handles[1])
+
+            time.sleep(1)
+            browser = driver.window_handles
+
+            for i in range(1,len(browser)):
+                shopinfo = {"shopName" : target[0-i]["place_name"],
+                            "shoppic" :[],
+                            "menu": []
+                            }
+
+                driver.switch_to.window(driver.window_handles[i])
+                html = driver.page_source
+                soup = BeautifulSoup(html, 'html.parser')
+                try:
+                    pic = soup.find('ul',{'class':'list_photo photo_type5'})
+                    pics = pic.find_all('a')
+                    for p in pics :
+                        pp = p.get_attribute_list('style')
+                        picURL = pp[0][24:55] + "C320x320/" + pp[0][64:-1]
+                        shopinfo["shoppic"].append(picURL)
+                            
+                        try:
+                            menu = soup.find('ul',{'class':'list_menu'})
+                            menus = menu.find_all('li')
+                            for m in menus:
+                                menu = m.find("span",{"class":"loss_word"}).get_text()
+                                price = m.find("em",{"class":"price_menu"}).get_text()
+                                menuSet = [menu, price[4:]]
+    
+                                shopinfo["menu"].append(menuSet)
+                        except:
+                            shopinfo["menu"].append(["메뉴 정보 없음","가격 정보 없음"])
+                except:
+                    print("로딩 에러 인듯")    
         
-            pic = soup.find('ul',{'class':'list_photo photo_type5'})
-            pics = pic.find_all('a')
-            for p in pics :
-                pp = p.get_attribute_list('style')
-                picURL = pp[0][24:55] + "C320x320/" + pp[0][64:-1]
-                shopinfo["shoppic"].append(picURL)
 
+                result.append(shopinfo)
 
-            try:
-                menu = soup.find('ul',{'class':'list_menu'})
-                menus = menu.find_all('li')
-                for m in menus:
-                    menu = m.find("span",{"class":"loss_word"}).get_text()
-                    price = m.find("em",{"class":"price_menu"}).get_text()
-                    menuSet = [menu, price[4:]]
-                    shopinfo["menu"].append(menuSet)
-            except:
-                shopinfo["menu"].append(["메뉴 정보 없음","가격 정보 없음"])
-
-            print(shopinfo)
-            result.append(shopinfo)
-
-        shops = request.data["data"]
-
-
-        for shop in shops:
-            asyncio.run(crwaling(shop))
+        crwaling(shops)
 
         return Response(result)
