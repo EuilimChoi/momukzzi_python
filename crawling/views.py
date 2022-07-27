@@ -1,3 +1,4 @@
+from tkinter import Menu
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -6,6 +7,7 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from django.db import transaction
 from .serializers import ShopInfoSerializer,ShopPicSerializer,ShopMenuSerializer
+from .models import Shopinfo, Shopmenu, Shoppic
 import time
 import asyncio
 
@@ -17,14 +19,14 @@ class CrawlingView (APIView):
     def post (self, request):
         webdriver_options = webdriver.ChromeOptions()
         webdriver_options.add_argument('headless')
-        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver")
+        driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver",options=webdriver_options)
         shops = request.data["data"]
         result = []
 
 
         def crwaling(target):
-            
             for urls in target:
+                cheakShopInDB(urls)
                 driver.execute_script("window.open('"+urls["place_url"]+"')")
 
             # 모든 브라우져 열기
@@ -36,7 +38,6 @@ class CrawlingView (APIView):
 
             for i in range(1,len(browser)):
                 shopinfo = {"shopName" : target[0-i]["place_name"],
-                            "shopId" : target[0-i]["id"],
                             "location" : target[0-i]["road_address_name"],
                             "phoneNumber" : target[0-i]["phone"],
                             "shoppic" :[],
@@ -54,30 +55,28 @@ class CrawlingView (APIView):
                         picURL = pp[0][24:55] + "C320x320/" + pp[0][64:-1]
                         shopinfo["shoppic"].append(picURL)
                             
-                        try:
-                            menu = soup.find('ul',{'class':'list_menu'})
-                            menus = menu.find_all('li')
-                            print(menus)
+                    try:
+                        menu = soup.find('ul',{'class':'list_menu'})
+                        menus = menu.find_all('li')
 
-                            for m in menus:
-                                menu = m.find("span",{"class":"loss_word"}).get_text()
-                                price = m.find("em",{"class":"price_menu"}).get_text()
-                                menuSet = [menu, price[4:]]
-    
-                                shopinfo["menu"].append(menuSet)
-                        except:
-                            shopinfo["menu"].append(["메뉴 정보 없음","가격 정보 없음"])
+                        for m in menus:
+                            menu = m.find("span",{"class":"loss_word"}).get_text()
+                            price = m.find("em",{"class":"price_menu"}).get_text()
+                            menuSet = [menu, price[4:]]
 
+                            shopinfo["menu"].append(menuSet)
+                    except:
+                        shopinfo["menu"].append(["메뉴 정보 없음","가격 정보 없음"])
                 except:
                     print("로딩 에러 인듯")    
 
-                # dbsaveLogic(shopinfo)
-                result.append(shopinfo)
+                with transaction.atomic():
+                    dbsaveLogic(shopinfo)
+                    result.append(shopinfo)
+
 
         def dbsaveLogic(shopinfo):
-            print(shopinfo)
             shopinfos = {"shopName" : shopinfo["shopName"],
-                        "shopId" : shopinfo["shopId"],
                         "location" : shopinfo["location"],
                         "phoneNumber" : shopinfo["phoneNumber"]}
 
@@ -88,19 +87,34 @@ class CrawlingView (APIView):
             else :
                 print("Not saved!!!!!!!!")
             
+            shopid = Shopinfo.objects.get(shopName=shopinfo["shopName"],location = shopinfo["location"],phoneNumber = shopinfo["phoneNumber"])
             for i in shopinfo["shoppic"]:
-                shoppicserializer=ShopPicSerializer(data = {"shopId" : shopinfo["shopId"],"URL":i})
+                shoppicserializer=ShopPicSerializer(data = {"shopId_id":int(shopid.id),"URL":i})
                 if shoppicserializer.is_valid():
                     shoppicserializer.save()
+                else:
+                    print("사진 저장 오류")
 
             for i in shopinfo["menu"]:
-                shopmenuserializer=ShopMenuSerializer(data = {"shopId" : shopinfo["shopId"],"menu":i[0],"price":i[1]})
+                shopmenuserializer=ShopMenuSerializer(data = {"shopId_id" :int(shopid.id),"menu":i[0],"price":i[1]})
                 if shopmenuserializer.is_valid():
                     shopmenuserializer.save()
+                else:
+                    print("메뉴 저장 오류")
 
-            print(shopinfo["shoppic"])
 
 
+        def cheakShopInDB(shopinfo):
+            shopinfoInDB = Shopinfo.objects.get(shopName=shopinfo["place_name"],location = shopinfo["road_address_name"],phoneNumber = shopinfo["phone"])
+            if shopinfoInDB:
+                print("디비에 있음")
+                id = shopinfoInDB.id
+                pics = Shoppic.objects.filter(id=id).values()
+                menus = Shopmenu.objects.filter(id=id).values()
+                print(pics)
+            else :
+                print("디비에 없음")
+                return False
 
 
 
