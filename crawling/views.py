@@ -21,12 +21,13 @@ class CrawlingView (APIView):
         webdriver_options.add_argument('headless')
         driver = webdriver.Chrome("/Users/choeuilim/Downloads/chromedriver",options=webdriver_options)
         shops = request.data["data"]
+        crawling = []
         result = []
 
 
         def crwaling(target):
+            print("크롤링 시작!!!!!!!!!")
             for urls in target:
-                cheakShopInDB(urls)
                 driver.execute_script("window.open('"+urls["place_url"]+"')")
 
             # 모든 브라우져 열기
@@ -105,20 +106,46 @@ class CrawlingView (APIView):
 
 
         def cheakShopInDB(shopinfo):
-            shopinfoInDB = Shopinfo.objects.get(shopName=shopinfo["place_name"],location = shopinfo["road_address_name"],phoneNumber = shopinfo["phone"])
-            if shopinfoInDB:
-                print("디비에 있음")
-                id = shopinfoInDB.id
-                pics = Shoppic.objects.filter(id=id).values()
-                menus = Shopmenu.objects.filter(id=id).values()
-                print(pics)
-            else :
-                print("디비에 없음")
-                return False
+            try:
+                shoppic = []
+                menu = []
+                shopinfoInDB = Shopinfo.objects.get(shopName=shopinfo["place_name"],location = shopinfo["road_address_name"],phoneNumber = shopinfo["phone"])
+                if shopinfoInDB:
+                    print("디비에 있음")
+                    id = shopinfoInDB.id
+                    shopinfomation = Shopinfo.objects.filter(id=id).values()
+                    pics = Shoppic.objects.filter(shopId_id=id).values()
+                    menus = Shopmenu.objects.filter(shopId_id=id).values()
+
+                    for pic in pics :
+                        shoppic.append(pic["URL"])
+
+                    for m in menus:
+                        menu.append([m["menu"],m["price"]])
+                        
+                    
+                    making = {"shopName" : shopinfomation[0]["shopName"],
+                                "location" : shopinfomation[0]["location"],
+                                "phoneNumber" : shopinfomation[0]["phoneNumber"],
+                                "shoppic" : shoppic,
+                                "menu": menu
+                                }
+                    result.append(making)
+            except:
+                crawling.append(shopinfo)
 
 
+        def main(shoplist):
+            print("main!!")
+            for shop in shoplist:
+                cheakShopInDB(shop)
+            
+            if len(crawling) > 0 :
+                crwaling(crawling)
 
-        crwaling(shops)
+
+        main(shops)
         driver.close()
+
 
         return Response(result)
