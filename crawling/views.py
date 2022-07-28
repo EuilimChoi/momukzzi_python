@@ -12,8 +12,6 @@ import time
 import asyncio
 
 # Create your views here.
-loop = asyncio.get_event_loop()
-asyncio.set_event_loop(loop)
 
 class CrawlingView (APIView):
     def post (self, request):
@@ -142,7 +140,6 @@ class CrawlingView (APIView):
             
             if len(crawling) > 0 :
                 crwaling(crawling)
-
 
         main(shops)
         driver.close()

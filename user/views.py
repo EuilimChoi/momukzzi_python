@@ -1,7 +1,3 @@
-
-from django.db.models import Q 
-from rest_framework.authtoken.models import Token
-from rest_framework.authentication import TokenAuthentication
 from .models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -35,6 +31,6 @@ class LoginView(APIView):
                 token = jwt.encode({"userId":request.data["userId"]}, "1234", algorithm="HS256")
                 return Response({"token":token, "userId":request.data["userId"]}, status=status.HTTP_200_OK)
 
-            return Response({"err":"정보가 이상함"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"err":"로그인 정보를 확인해 주세요"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"err":serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

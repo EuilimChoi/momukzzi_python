@@ -1,5 +1,3 @@
-from os import PRIO_PROCESS
-from unicodedata import category
 from django.db import models
 
 # Create your models here.
