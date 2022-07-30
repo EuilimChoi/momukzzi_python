@@ -18,12 +18,26 @@ class RivewView (APIView):
             except:
                 print("err!")
                 return Response({"status" : "Token Err!"}, status=status.HTTP_400_BAD_REQUEST)
-
-            reviewSerializer = ReviewSerializer(data = {"shopId_id":request.data["shopId"],"userId_id":userId,"comment":request.data["comment"], "star":request.data["star"]})
+            
+            data = {'shopId':request.data["shopId"],'userId':userId,'comment':request.data["comment"], 'star':request.data["star"]}
+            print(data)
+            reviewSerializer = ReviewSerializer(data = data)
             if reviewSerializer.is_valid():
+                print("시릴라이져 온!")
                 reviewSerializer.save()
+                print(reviewSerializer.data)
                 return Response({"status" : "Posting!", "data" : request.data}, status=status.HTTP_201_CREATED)
+            else : 
+                print("ERR!!!!!!")
             return Response("Not Posted!!!")
+
+
+    def update (self, request):
+        return Response("update!!!!!")
+
+    def delete (self, request):
+        return Response("delete!!")
+
 
 
     def get(self, request):

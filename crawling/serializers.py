@@ -22,4 +22,4 @@ class ShopMenuSerializer(serializers.Serializer):
     menu = serializers.CharField(write_only=True, required=True,)
     price = serializers.CharField(write_only=True, required=True,)
     def create(self, validated_data):
-        return Shopmenu.objects.create(**validated_data)    
+        return Shopmenu.objects.create(**validated_data)
