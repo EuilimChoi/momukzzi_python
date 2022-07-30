@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import RivewView
+from .views import ReviewView
 
 urlpatterns =[
-    path('',RivewView.as_view()),
+    path('',ReviewView.as_view()),
+    path('<int:reviewId>',ReviewView.as_view())
 ]
 

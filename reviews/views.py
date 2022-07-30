@@ -1,12 +1,21 @@
+from django.urls import is_valid_path
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from user.models import User
+from .models import Review
 import jwt
 from rest_framework import status
 from .serializers import ReviewSerializer
+from django.http import Http404
 
 # Create your views here.
-class RivewView (APIView):
+class ReviewView (APIView):
+    def get_object(self, pk):
+        try:
+            return Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            raise Http404
+
     def post (self, request):
         #로그인한 사람의 토큰이 맞는지를 보고, 그에 맞는 상점에 알맞는 리뷰를 작성합니다.
         #토큰이 문제가 있으면 벤때립니다.
@@ -31,9 +40,28 @@ class RivewView (APIView):
                 print("ERR!!!!!!")
             return Response("Not Posted!!!")
 
+    def put (self, request, reviewId):
+        review = self.get_object(reviewId)
+        try:
+            token = jwt.decode(request.META['HTTP_AUTHORIZATION'][7:],"1234", algorithm="HS256")
+            userId = int(User.objects.filter(userId = token['userId']).values()[0]["id"])
+            targetReview = Review.objects.get(id=reviewId)
 
-    def update (self, request):
+            print(targetReview.userId_id)
+        except:
+            print("err!")
+            return Response({"status" : "Token Err!"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if int(userId) == int(targetReview.userId_id):
+            targetReview = Review.objects.get(id=reviewId)
+            data = {'shopId':request.data["shopId"],'userId':userId,'comment':request.data["comment"], 'star':request.data["star"]}
+            reviewSerializer = ReviewSerializer(targetReview, data=data)
+            if reviewSerializer.is_valid():
+                reviewSerializer.save()
+
+            return Response("유저 확인됨")
         return Response("update!!!!!")
+
 
     def delete (self, request):
         return Response("delete!!")
